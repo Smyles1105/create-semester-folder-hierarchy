@@ -1,4 +1,4 @@
-from os import *
+from os import mkdir
 
 
 def getSetting(weeks):
