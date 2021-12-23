@@ -1,93 +1,151 @@
+from itertools import repeat
 from os import mkdir
 
+CLASS_INFO = {
+    "CLASSNAME": "Class",
+    "ASSIGNMENT": 0,
+    "PROJECT": 0,
+    "LAB": 0,
+    "LECTURE": 0
+}
 
-def getSetting(weeks):
-    inp = input("Every week, every two weeks, custom step, or manual? (0, 1, 2, or 3): ")
-    setting = int(inp.strip())
+
+def verifyInput(prompt, mode):  # TODO FINISH
+    input_is_verified = False
+    while input_is_verified is not True:
+        if mode == "i0" or mode == "i1":
+            try:
+                inp = int(input(prompt).strip())
+                if (mode == 'i0' and inp >= 0) or (mode == 'i1' and inp > 0):
+                    input_is_verified = True
+                    return inp
+                else:
+                    print("Input is not in valid range, please try again")
+            except:
+                print("Input is empty, try again.")
+        elif mode == "s":
+            try:
+                inp = input(prompt).strip()
+                input_is_verified = True
+                return inp
+            except:
+                print("Input is empty, try again")
+    return inp
+
+
+def get_class_name():
+    class_name = verifyInput("Enter Class Name: ", 's')
+    return class_name
+
+
+def get_class_count():
+    class_count = verifyInput("Enter number of classes: ", 'i1')
+    return class_count
+
+
+def create_classes_dictionary(class_count, s_l):
+    info_keys = list(CLASS_INFO.keys())
+    classes_dict = {}
+    for i in range(class_count):
+        class_name = get_class_name()
+        class_dict = CLASS_INFO.copy()
+        for (key, value) in class_dict.items():
+            if key != "CLASSNAME":
+                task_dict = {}
+                task_number = get_task_number(key)
+                setting = get_setting()
+                task_locations = get_task_locations(task_number, setting, key, s_l)
+                task_dict.update({"count": task_number})
+                task_dict.update({"locations": task_locations})
+                class_dict.update({key: task_dict})
+            else:
+                value = class_name
+                class_dict.update({key: value})
+        classes_dict.update({class_name: class_dict})
+    return classes_dict
+
+
+def get_directory():
+    directory = verifyInput("Please enter a directory: ", 's')
+    return directory
+
+
+def get_task_number(key):
+    # This function requests the number of folders for any given task, defined by key.
+    task_number = verifyInput(f"How many {key} folders do you want: ", 'i0')
+    return task_number
+
+
+def get_semester_length():
+    semester_length = verifyInput("How many weeks in the semester: ", 'i1')
+    return semester_length
+
+
+def get_setting():
+    setting = verifyInput("Weekly, Biweekly, custom step or manual (0, 1, 2, 3) ", 'i0')
     return setting
 
 
-def getStartWeeks(s, wks, folder_num, task_type):
-    starts = list()
-    wksLst = list()
+def calculate_repeats(num_of_tasks, s_l):
+    if num_of_tasks > s_l:
+        repeats = round(num_of_tasks / s_l)
+    else:
+        repeats = 1
+    return repeats
 
-    #creates a indexable list, 1 index for each week in the semester
-    for i in range(1, wks + 1):
-        wksLst.append(i)
-    new_weeks = wksLst
-
-    first_week = int(input("Enter first week for pattern to start from: "))
-    if s == 0: #Weekly
-        starts = new_weeks[first_week-1:]
-
-    elif s == 1: #Biweekly
-        starts = new_weeks[first_week-1::2]
-
-    elif s == 2: #Custom solid frequency
-        step = int(input("Enter step for pattern: "))
-        starts = new_weeks[first_week-1:first_week + step*(folder_num-1):step]
-
-    else: #Completely manual
-        for a in range(folder_num):
-            week = int(input(f"Please enter the start week of {task_type}_{a + 1}"))
-            starts.append(week)
-
-    if len(starts) > folder_num:
-        starts = starts[:folder_num]
-    return starts
+def get_task_locations(number_of_tasks, setting, key, s_l):
+    task_locations = []
+    if setting in range(3):
+        first_week = verifyInput("Enter first week: ", 'i1')
+        if setting == 2:
+            step = verifyInput("Enter step: ", 'i1')
+        else:
+            step = setting + 1
+        repeats = calculate_repeats(number_of_tasks, s_l)
+        task_locations = list(list(repeat(x, repeats) for x in range(
+            first_week, round(number_of_tasks * step / repeats) + 1, step)))
+        return task_locations
+    else:
+        task_locations = list(verifyInput(f"Enter start week of {key}_{x + 1}: ", 'i1')
+                              for x in range(number_of_tasks))
+        task_locations = [task_locations]
+    return task_locations
 
 
-program_description = (
-    "This program allows the user to create a multi-level directory for a class that creates folders for the number of assignments, labs, projects, etc.")
-answer = "y"
-#allows user to create multiple classes worth of folders
-while answer == "y":
+def create_folders(classes_dict, s_l, dir):
+    for c_name, c_info in classes_dict.items():
 
-    #directory and dictionary information
-    directory = input("Please enter a directory for creating a class folder (no quotes): ")
-    directory.replace('\\', "/")
-    class_info = {
-        "week": 0,
-        "assignment": 0,
-        "project": 0,
-        "lab": 0,
-        "lecture": 0
-    }
-    keys = list(class_info.keys())
+        for c_info_name, c_info_val in c_info.items():
 
-    # creates initial folder
-    class_name = input('Please enter the name of the class: ')
-    mkdir(f"{directory}/{class_name}")
+            if c_info_name == "CLASSNAME":
+                class_name = c_info_val
+                mkdir(f"{dir}/{class_name}")
+                for i in range(s_l):
+                    mkdir(f"{dir}/{class_name}/Week_{i + 1}")
 
-    # creates folders for each week
-    weeks = int(input("Please enter the number of weeks in the syllabus/course: "))
-    for i in range(weeks):
-        mkdir(f"{directory}/{class_name}/Week_{i + 1}")
+            if c_info_name != "CLASSNAME":
 
-    # Each iteration creates folders for a task type of a specific numebr and in specific weeks
-    for i in range(1, len(class_info)):
-        folder_type = keys[i]
+                for task_info_name, task_info_val in c_info_val.items():
+                    task_type = c_info_name
 
-       #Getting info for file names
-        number_of_folders = int(input(f"Please enter the number of {folder_type}s you'd like to create: "))
-        option = getSetting(weeks)
-        #print(option)
-        start_weeks = getStartWeeks(option, weeks, number_of_folders, folder_type)
+                    if task_info_name == "locations":
+                        a = 1
 
-        #Logic for new start_week_list if multiple folders per week
-        if number_of_folders > weeks:
-            #print(number_of_folders, " > ", weeks)
-            repeats = number_of_folders / weeks
-            new_start_weeks = list()
-            for a in range(len(start_weeks)):
-                for b in range(1, round(repeats + 1)):
-                    new_start_weeks.append(start_weeks[a])
-            start_weeks = new_start_weeks
+                        for location_set in task_info_val:
 
-        # iterates through once for each folder of a specific type and makes them in their start week folder.
-        #print(start_weeks)
-        for c in range(1, len(start_weeks)+1):
-            folder_directory = f"{directory}/{class_name}/Week_{start_weeks[c-1]}/{folder_type}_{c}"
-            #print(folder_directory)
-            mkdir(folder_directory)
-    answer = input('Do you want to create another set of folders for another class (y/n)? ').lower().strip()
+                            for location in location_set:
+                                folder_directory = f"{dir}/{class_name}/Week_{location}/{task_type}_{a}"
+                                mkdir(folder_directory)
+                                a += 1
+
+
+def main():
+    dir = get_directory()
+    count = get_class_count()
+    sem_len = get_semester_length()
+    c_dict = create_classes_dictionary(count, sem_len)
+    create_folders(c_dict, sem_len, dir)
+    print("Class Folders Created! Goodbye!")
+
+
+main()
